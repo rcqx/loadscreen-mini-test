@@ -13,6 +13,7 @@ function twoSum(nums, target) {
         if (num === 0 && index !== i) secondValue = index;
       });
 
+      console.log("debug res ->", [i, secondValue]);
       return res = [i, secondValue];
     }
 
