@@ -233,6 +233,14 @@
       td:nth-child(4), th:nth-child(4),
       td:nth-child(6), th:nth-child(6) { display: none; }
     }
+    dialog {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      margin: 0;
+      padding: 40px 24px 24px;
+    }
   </style>
 </head>
 <body>
@@ -266,6 +274,13 @@
     </div>
   </div>
 
+  <div style="display:flex; justify-content:flex-end; margin-bottom:12px">
+    <button
+      id="add-employee-btn"
+      style="padding: 8px 12px; background-color: #0f3460; color: white; border: none; border-radius: 4px; cursor: pointer;">Add
+      Employee +</button>
+  </div>
+
   <div class="toolbar">
     <div class="search-wrap">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -277,8 +292,35 @@
       <option value="all">All Departments</option>
     </select>
     <span id="resultCount"></span>
-  </div>
+    </div>
 
+  <dialog>
+    <form action="" style="display: flex; flex-direction: column; gap: 12px; min-width: 280px; max-width: 320px;">
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" required>
+      <label for="department">Department</label>
+      <input type="text" id="department" name="department " required>
+      <label for="position">Position</label>
+      <input type="text" id="position" name="position" required>
+      <label for="email">Email</label>
+      <input type="email" id="email" name="email" required>
+      <label for="hire_date">Hire Date</label>
+      <input type="date" id="hire_date" name="hire_date" required>
+      <label for="salary">Salary</label>
+      <input type="number" id="salary" name="salary" required>
+      <button type="submit"></button>
+      <button id="cancel-dialog" type="button">Cancel</button>
+    </form>
+  </dialog>
+
+  <dialog id="delete-employee-confirmation" style="border:none; border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,0.3);">
+    <label for="" class="padding-bottom: 10px;">You sure?</label>
+    <form action="" style="display: flex; flex-direction: column; gap: 12px; min-width: 280px; max-width: 320px;">
+      <button type="submit">Confirm</button>
+      <button id="cancel-delete-dialog" type="button">Cancel</button>
+    </form>
+  </dialog>
+  
   <div class="table-wrap">
     <table>
       <thead>
@@ -313,6 +355,101 @@
   let sortCol = 'id';
   let sortOrder = 'asc';
   let allEmployees = [];
+
+  document.getElementById('add-employee-btn').addEventListener('click', () => {
+    const dialog = document.querySelector('dialog');
+    dialog.dataset.mode = 'create';
+    dialog.querySelector('button[type="submit"]').textContent = 'Create Employee';
+    dialog.showModal();
+  });
+
+  document.querySelector('tbody').addEventListener('click', (e) => {
+    if (e.target.classList.contains('edit-employee-btn')) {
+      const emp = allEmployees.find((employee) => employee.id === Number(e.target.dataset.id));
+      if (!emp) return;
+      const dialog = document.querySelector('dialog');
+      dialog.dataset.mode = 'edit';
+      dialog.dataset.editId = emp.id;
+      dialog.querySelector('button[type="submit"]').textContent = 'Save Changes';
+      const form = dialog.querySelector('form');
+      form.name.value       = emp.name;
+      form.department.value = emp.department;
+      form.position.value   = emp.position;
+      form.email.value      = emp.email;
+      form.hire_date.value  = emp.hire_date;
+      form.salary.value     = emp.salary;
+
+      dialog.showModal();
+    }
+  });
+
+  document.getElementById('cancel-dialog').addEventListener('click', (e) => {
+    e.preventDefault();
+    const dialog = document.querySelector('dialog');
+    dialog.close();
+  });
+
+  document.getElementById('cancel-delete-dialog').addEventListener('click', () => {
+    document.getElementById('delete-employee-confirmation').close();
+  });
+  
+  document.querySelector('tbody').addEventListener('click', (e) => {
+    if (e.target.classList.contains('delete-employee-btn')) {
+      const dialog = document.getElementById('delete-employee-confirmation');
+      dialog.dataset.deleteId = e.target.dataset.id;
+      dialog.querySelector('button[type="submit"]').textContent = 'Delete Employee';
+      dialog.showModal();
+    }
+  });
+
+  document.querySelector('dialog form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const data = {
+      name: form.name.value,
+      department: form.department.value.trim(),
+      position: form.position.value,
+      email: form.email.value,
+      hire_date: form.hire_date.value,
+      salary: Number(form.salary.value),
+    };
+
+    if (document.querySelector('dialog').dataset.mode === 'edit') {
+      const id = document.querySelector('dialog').dataset.editId;
+      await updateEmployee(id, data).then((res) => {
+        console.log("response", res);
+        if (!res.success) {
+          alert('Error updating employee: ' + res.error);
+        }
+      });
+    } else {
+      await createEmployee(data).then((res) => {
+        console.log("response", res);
+        if (!res.success) {
+          alert('Error creating employee: ' + res.error);
+        }
+      });
+    }
+    form.reset();
+    document.querySelector('dialog').close();
+    loadEmployees();
+  });
+
+  document.getElementById('delete-employee-confirmation').querySelector('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const dialog = document.getElementById('delete-employee-confirmation');
+    const emp = allEmployees.find((employee) => employee.id === Number(dialog.dataset.deleteId));
+    console.log("ID ->", emp.id);
+    await deleteEmployee(emp.id).then((res) => {
+      console.log("response", res);
+      if (!res.success) {
+        alert('Error deleting employee: ' + res.error);
+      }
+    });
+    document.getElementById('delete-employee-confirmation').close();
+    loadEmployees();
+  });
+
 
   function avatarColor(name) {
     let h = 0;
@@ -370,6 +507,10 @@
         <td>${emp.position}</td>
         <td>${formatDate(emp.hire_date)}</td>
         <td style="font-weight:600">${formatSalary(emp.salary)}</td>
+        <td>
+          <button data-id="${emp.id}" class="edit-employee-btn" style="padding:4px 8px; font-size:0.78rem; background:#eee; border:none; border-radius:4px; cursor:pointer">Edit</button>
+          <button data-id="${emp.id}" class="delete-employee-btn" style="padding:4px 8px; font-size:0.78rem; background:#eee; border:none; border-radius:4px; cursor:pointer; background:#ffcccc; color:#333">Delete</button>
+        </td>
       </tr>
     `).join('');
   }
@@ -397,6 +538,40 @@
       sel.appendChild(opt);
     });
     document.getElementById('statDepts').textContent = depts.length;
+  }
+
+  async function createEmployee(data) {
+    console.log('Creating employee', data);
+    const res = await fetch('/api/employees', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).catch(err => {
+      console.error('Fetch error', err);
+      throw new Error('Network error');
+    });
+    return await res.json();
+  }
+
+  async function updateEmployee(id, data) {
+    const res = await fetch(`/api/employees/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    }).catch(err => {
+      console.error('Fetch error', err);
+      throw new Error('Network error');
+    });
+    return await res.json();
+  }
+
+  async function deleteEmployee(id) {
+    const res = await fetch(`/api/employees/${id}`, { method: 'DELETE' })
+      .catch(err => {
+        console.error('Fetch error', err);
+        throw new Error('Network error');
+      });
+    return await res.json();
   }
 
   async function loadEmployees() {
