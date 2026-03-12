@@ -14,6 +14,23 @@
       min-height: 100vh;
     }
 
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.85rem;
+      color: #555;
+    }
+
+    input {
+      width: 100%;
+      padding: 6px;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
     header {
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
       color: white;
@@ -240,6 +257,8 @@
       transform: translate(-50%, -50%);
       margin: 0;
       padding: 40px 24px 24px;
+      border-radius: 12px;
+      border: none;
     }
   </style>
 </head>
@@ -300,7 +319,7 @@
     </div>
 
   <dialog>
-    <form action="" style="display: flex; flex-direction: column; gap: 12px; min-width: 280px; max-width: 320px;">
+    <form action="" style="display: flex; flex-direction: column; gap: 10px; min-width: 280px; max-width: 320px;">
       <label for="name">Name</label>
       <input type="text" id="name" name="name" required>
       <label for="department">Department</label>
@@ -313,16 +332,16 @@
       <input type="date" id="hire_date" name="hire_date" required>
       <label for="salary">Salary</label>
       <input type="number" id="salary" name="salary" required>
-      <button type="submit"></button>
-      <button id="cancel-dialog" type="button">Cancel</button>
+      <button type="submit" style="margin-top: 12px; padding: 8px; background-color: #0f3460; color: white; border: none; border-radius: 4px; cursor: pointer;">Create Employee</button>
+      <button id="cancel-dialog" style="padding: 8px; background-color: #ffcccc; border: none; border-radius: 4px; cursor: pointer;" type="button">Cancel</button>
     </form>
   </dialog>
 
   <dialog id="delete-employee-confirmation" style="border:none; border-radius:8px; box-shadow:0 2px 12px rgba(0,0,0,0.3);">
-    <label for="" class="padding-bottom: 10px;">You sure?</label>
+    <label style="padding-bottom: 10px; color: red; font-size: 24px">You sure?</label>
     <form action="" style="display: flex; flex-direction: column; gap: 12px; min-width: 280px; max-width: 320px;">
-      <button type="submit">Confirm</button>
-      <button id="cancel-delete-dialog" type="button">Cancel</button>
+      <button type="submit" style="padding: 8px; background-color: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">Confirm</button>
+      <button id="cancel-delete-dialog" type="button" style="padding: 8px; background-color: #f3f3f3; border: none; border-radius: 4px; cursor: pointer;">Cancel</button>
     </form>
   </dialog>
   
@@ -424,17 +443,12 @@
 
     if (document.querySelector('dialog').dataset.mode === 'edit') {
       const id = document.querySelector('dialog').dataset.editId;
-      await updateEmployee(id, data).then((res) => {
-        console.log("response", res);
-        if (!res.success) {
-          alert('Error updating employee: ' + res.error);
-        }
-      });
+      await updateEmployee(id, data);
     } else {
       await createEmployee(data).then((res) => {
         console.log("response", res);
         if (!res.success) {
-          alert('Error creating employee: ' + res.error);
+          console.log('Error creating employee: ' + res.error);
         }
       });
     }
