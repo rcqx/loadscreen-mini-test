@@ -274,11 +274,16 @@
     </div>
   </div>
 
+  <div style="display: flex; justify-content: center;">
+    <canvas id="pieChart" width="400" height="300" style="border-radius:12px; background:white; box-shadow:0 1px 4px rgba(0,0,0,0.08);"></canvas>
+  </div>
+
   <div style="display:flex; justify-content:flex-end; margin-bottom:12px">
     <button
       id="add-employee-btn"
-      style="padding: 8px 12px; background-color: #0f3460; color: white; border: none; border-radius: 4px; cursor: pointer;">Add
-      Employee +</button>
+      style="padding: 8px 12px; background-color: #0f3460; color: white; border: none; border-radius: 4px; cursor: pointer;">
+      Add Employee +
+    </button>
   </div>
 
   <div class="toolbar">
@@ -339,6 +344,8 @@
     </table>
   </div>
 
+  <div id="pagination" style="display:flex; justify-content:flex-end; margin-top:16px; gap:8px;"></div>
+
 </div>
 
 <script>
@@ -355,6 +362,7 @@
   let sortCol = 'id';
   let sortOrder = 'asc';
   let allEmployees = [];
+  let currentPage = 0;
 
   document.getElementById('add-employee-btn').addEventListener('click', () => {
     const dialog = document.querySelector('dialog');
@@ -450,6 +458,25 @@
     loadEmployees();
   });
 
+  function renderPagination(total) {
+    const totalPages = Math.ceil(total / 5);
+    console.log("Total pages:", totalPages);
+    const container = document.getElementById('pagination');
+    container.innerHTML = Array.from({ length: totalPages }, (_, i) => `
+      <button data-page="${i}" style="padding:8px; border-radius:4px; border:none; cursor:pointer;
+        background:${i === currentPage ? '#0f3460' : '#eee'};
+        color:${i === currentPage ? 'white' : '#333'}">
+        ${i + 1}
+      </button>
+    `).join('');
+  }
+
+  document.getElementById('pagination').addEventListener('click', (e) => {
+    if (e.target.dataset.page !== undefined) {
+      currentPage = Number(e.target.dataset.page);
+      loadEmployees();
+    }
+  });
 
   function avatarColor(name) {
     let h = 0;
@@ -577,10 +604,13 @@
   async function loadEmployees() {
     const search = document.getElementById('searchInput').value;
     const department = document.getElementById('deptFilter').value;
-    const params = new URLSearchParams({ search, department, sort: sortCol, order: sortOrder });
+    const params = new URLSearchParams({ search, department, sort: sortCol, order: sortOrder, offset: currentPage * 5 });
     const res = await fetch(`/api/employees?${params}`);
-    allEmployees = await res.json();
+    const { data, total } = await res.json();
+
+    allEmployees = data;
     renderTable(allEmployees);
+    renderPagination(total);
 
     if (department === 'all' && !search) {
       document.getElementById('statTotal').textContent = allEmployees.length;
@@ -603,6 +633,43 @@
     });
   });
 
+  async function drawPieChart() {
+    const data = await fetch('/api/salary-by-department').then(r => r.json());
+    console.log("Salary by department:", data);
+    const canvas = document.getElementById('pieChart');
+    const ctx = canvas.getContext('2d');
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const radius = Math.min(cx, cy) - 20;
+    const total = data.reduce((s, d) => s + d.average_salary, 0);
+
+    let startAngle = -Math.PI / 2;
+    data.forEach(({ department, average_salary }) => {
+      const slice = (average_salary / total) * 2 * Math.PI;
+      const [, color] = DEPT_COLORS[department] || ['#eee', '#555'];
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, radius, startAngle, startAngle + slice);
+      ctx.fillStyle = color;
+      ctx.fill();
+
+      const midAngle = startAngle + slice / 2;
+      const labelR = radius * 0.65;
+      const totalSalary = average_salary.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 });
+      const lx = cx + Math.cos(midAngle) * labelR;
+      const ly = cy + Math.sin(midAngle) * labelR;
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText(department, lx, ly - 7);
+      ctx.font = '10px sans-serif';
+      ctx.fillText(totalSalary, lx, ly + 7);
+
+      startAngle += slice;
+    });
+}
+
   let debounceTimer;
   document.getElementById('searchInput').addEventListener('input', () => {
     clearTimeout(debounceTimer);
@@ -614,6 +681,7 @@
   updateSortHeaders();
   loadDepartments();
   loadEmployees();
+  drawPieChart();
 </script>
 
 </body>

@@ -9,7 +9,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/api/employees', (req, res) => {
-  const { search, department, sort = 'id', order = 'asc' } = req.query;
+  const { search, department, sort = 'id', order = 'asc', limit = 5, offset } = req.query;
 
   const allowedSort = ['id', 'name', 'department', 'position', 'hire_date', 'salary'];
   const allowedOrder = ['asc', 'desc'];
@@ -32,8 +32,12 @@ app.get('/api/employees', (req, res) => {
 
   query += ` ORDER BY ${sortCol} ${sortOrder.toUpperCase()}`;
 
+  query += ` LIMIT ${limit} OFFSET ${offset}`;
+
   const employees = db.prepare(query).all(...params);
-  res.json(employees);
+  const countQuery = query.replace(/SELECT \*/, 'SELECT COUNT(*) as count').replace(/ ORDER BY.*/, '').replace(/ LIMIT.*/, '');
+  const { count } = db.prepare(countQuery).get(...params);
+  res.json({ data: employees, total: count });
 });
 
 app.post('/api/employees', (req, res) => {
@@ -97,11 +101,20 @@ app.delete('/api/employees/:id', (req, res) => {
   res.json({ success: true });
 });
 
-app.get('/api/departments', (req, res) => {
+app.get('/api/salary-by-department', (req, res) => {
   const departments = db.prepare('SELECT DISTINCT department FROM employees ORDER BY department').all();
-  res.json(departments.map(d => d.department));
+  const totalSalaryByDepartment = departments.map(d => {
+    const { total_salary } = db.prepare('SELECT SUM(salary) as total_salary, COUNT(*) as count FROM employees WHERE department = ?').get(d.department);
+    return {
+      department: d.department,
+      average_salary: total_salary
+    };
+  });
+
+  res.json(totalSalaryByDepartment);
 });
 
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });
+
